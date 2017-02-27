@@ -5,6 +5,36 @@ This utility gets the SE Backlog and prints the stories there on the
 screen. It is possible to limit the results to a particular lane,
 stakeholder or label.
 
+Building
+========
+
+It uses the:
+ - "github.com/VojtechVitek/go-trello" Trello library for Go.
+ - "gopkg.in/ahmetalpbalkan/go-linq.v3" LINQ for Go
+
+You can install them with:
+
+```
+go get github.com/VojtechVitek/go-trello
+go get gopkg.in/ahmetalpbalkan/go-linq.v3
+```
+
+Requirements
+============
+
+trello_secrets.json file that contains the Application Key and Token.
+
+Follow the instructions here https://trello.com/app-key to obtain an API
+key and token.
+
+
+```
+konrad at annapurna in snap-release-email-generator (master) % cat trello_secrets.json 
+{"app_id":"APP ID","token":"TOKEN"}
+
+```
+
+
 Usage
 =====
 
