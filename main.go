@@ -20,10 +20,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/influxdata/influxdb/client/v2"
 	"log"
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 var (
@@ -32,6 +34,10 @@ var (
 	limitList        = flag.String("list", "missing", "Limit the output to a single list")
 	limitLabel       = flag.String("label", "missing", "Limit the output to a single label")
 	limitStakeholder = flag.String("stakeholder", "missing", "Limit the output to a single stakeholder")
+)
+
+const (
+	database = "testdb"
 )
 
 func Print(stories BacklogStories) {
@@ -56,17 +62,86 @@ func main() {
 		log.Fatal(err)
 	}
 
-	backlog, err := trello.Backlog()
+	backlog, err := trello.Tillamook()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sfb, err := backlog.Stories()
+	lists, err := backlog.board.Lists()
+	if err != nil {
+		log.Fatal("Cannot get lists")
+	}
+
+	t := time.Now()
+
+	// Create a new HTTPClient
+	c, err := client.NewHTTPClient(client.HTTPConfig{
+		Addr: "http://localhost:8086",
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	bq := BacklogQuery{}
-	sfb = bq.Limit(sfb, *limitList, *limitLabel, *limitStakeholder)
-	Print(sfb)
+	// Create a new point batch
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:  database,
+		Precision: "s",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	labels := map[string]int{}
+
+	for _, l := range lists {
+		if !strings.Contains(tillamookLists, l.Name) {
+			continue
+		}
+
+		cards, err := l.Cards()
+		if err != nil {
+			log.Fatal("Cannot get cards")
+		}
+
+		tags := map[string]string{"lane": strings.Replace(strings.ToLower(l.Name), " ", "", -1)}
+		fields := map[string]interface{}{
+			"value": len(cards),
+		}
+
+		pt, err := client.NewPoint("daily-lists", tags, fields, t)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bp.AddPoint(pt)
+
+		for _, c := range cards {
+			if l.Name == "Done" {
+				continue
+			}
+			for _, ll := range c.Labels {
+				labels[ll.Name]++
+			}
+		}
+
+		fmt.Printf("insert daily,lane=%s value=%d %d\n", strings.Replace(strings.ToLower(l.Name), " ", "", -1), len(cards), t.UnixNano())
+	}
+
+	for key, item := range labels {
+		tags2 := map[string]string{"label": strings.Replace(strings.ToLower(key), " ", "-", -1)}
+		fields2 := map[string]interface{}{
+			"value": item,
+		}
+		pt2, err := client.NewPoint("daily-labels", tags2, fields2, t)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bp.AddPoint(pt2)
+
+	}
+
+	if err := c.Write(bp); err != nil {
+		log.Fatal(err)
+	}
+
+	// insert daily2,lane=backlog value=20 1504225728000123456
 }

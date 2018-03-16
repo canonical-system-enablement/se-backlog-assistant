@@ -10,7 +10,7 @@ type BacklogQuery struct{}
 func (q *BacklogQuery) Limit(stories BacklogStories, list string, label string, stakeholder string) BacklogStories {
 	var retval = stories
 	if list != "missing" {
-		retval = q.limitList(retval, list)
+		retval = q.LimitList(retval, list)
 	}
 	if label != "missing" {
 		retval = q.limitLabel(retval, label)
@@ -21,7 +21,7 @@ func (q *BacklogQuery) Limit(stories BacklogStories, list string, label string, 
 	return retval
 }
 
-func (q *BacklogQuery) limitList(stories BacklogStories, list string) BacklogStories {
+func (q *BacklogQuery) LimitList(stories BacklogStories, list string) BacklogStories {
 	var retval BacklogStories
 	From(stories).Where(func(c interface{}) bool {
 		return strings.Contains(c.(BacklogEntry).List, list)
